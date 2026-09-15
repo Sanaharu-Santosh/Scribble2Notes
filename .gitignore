@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+*.local
+*.tsbuildinfo
+
+# Environment — never commit real keys
+.env
+.env.*
+!.env.example
+
+# Credentials
+*-service-account*.json
+credentials.json
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/

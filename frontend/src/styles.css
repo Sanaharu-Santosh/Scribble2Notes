@@ -1,0 +1,481 @@
+:root {
+  --paper: #f3f5f6;
+  --surface: #ffffff;
+  --ink: #1a2233;
+  --ink-soft: #5b6472;
+  --ink-faint: #8a93a0;
+  --rule: #d7dee3;
+  --accent: #d63a2e;
+  --blue: #2a5adb;
+  --teal: #177a64;
+  --shadow: 0 1px 2px rgba(26, 34, 51, 0.06), 0 10px 30px rgba(26, 34, 51, 0.08);
+  --font-display: "Archivo", system-ui, sans-serif;
+  --font-body: "Source Serif 4", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #10151c;
+    --surface: #161d26;
+    --ink: #e7ecef;
+    --ink-soft: #93a2af;
+    --ink-faint: #5f6d7a;
+    --rule: #26313d;
+    --accent: #ff6b52;
+    --blue: #7c9bff;
+    --teal: #3fcda8;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  margin: 0;
+  text-wrap: balance;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+button {
+  font: inherit;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: var(--ink);
+  color: var(--paper);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--ink-soft);
+  border-color: var(--rule);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+}
+
+/* ---------- header ---------- */
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.brand-mark {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+}
+
+.brand h1 {
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+
+.brand p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+}
+
+.tabs button {
+  background: transparent;
+  color: var(--ink-soft);
+}
+
+.tabs button.is-active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* ---------- banners ---------- */
+.banner {
+  margin: 16px 0 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+}
+
+.banner-mock {
+  border-left: 3px solid var(--accent);
+}
+
+.banner-error {
+  border-left: 3px solid var(--accent);
+  color: var(--ink);
+}
+
+.error-banner {
+  margin: 16px 0 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  font-size: 14px;
+}
+
+.error-text {
+  color: var(--accent);
+  font-size: 13px;
+  margin: 8px 0 0;
+}
+
+.status {
+  color: var(--ink-soft);
+  font-size: 14px;
+  margin: 16px 0 0;
+}
+
+/* ---------- mode ---------- */
+.mode {
+  padding-top: 24px;
+}
+
+.mode-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.mode-header h2 {
+  font-size: 20px;
+}
+
+.mode-header p {
+  margin: 4px 0 0;
+  max-width: 62ch;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* ---------- picker ---------- */
+.picker {
+  border: 1px dashed var(--rule);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.picker.is-dragging {
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+.picker-hint {
+  margin: 0 auto 18px;
+  max-width: 52ch;
+  color: var(--ink-soft);
+}
+
+.picker-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.picker-note {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+/* ---------- stage + overlays ---------- */
+.stage {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  margin-top: 20px;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  background: var(--surface);
+}
+
+.stage img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+}
+
+/*
+ * The selectable text layer. Transparent glyphs, visible selection — so the
+ * user sees their own photo but the browser sees real text.
+ */
+.overlay-text {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  color: transparent;
+  white-space: pre;
+  line-height: 1;
+  transform-origin: 0 0;
+  cursor: text;
+  user-select: text;
+  font-family: var(--font-body);
+}
+
+.overlay-text::selection {
+  background: rgba(42, 90, 219, 0.35);
+  color: transparent;
+}
+
+/* ---------- scan overlays ---------- */
+.block-region {
+  position: absolute;
+  padding: 0;
+  border: 1.5px solid;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.block-region.is-selected {
+  border-width: 2px;
+}
+
+.block-tag {
+  position: absolute;
+  top: -9px;
+  left: -1px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.table-cell {
+  position: absolute;
+  border: 1px dashed;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.annotation {
+  position: absolute;
+  pointer-events: none;
+}
+
+.annotation-highlight {
+  opacity: 0.45;
+  border-radius: 2px;
+}
+
+.annotation-underline {
+  border-radius: 2px;
+}
+
+.annotation-box {
+  background: transparent;
+  border: 1.5px solid;
+  border-radius: 3px;
+}
+
+/* ---------- scan layout ---------- */
+.scan-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
+  align-items: start;
+}
+
+.block-list {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.block-list h3 {
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.block-list ol {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.block-entry {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 13px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.block-entry.is-selected {
+  border-color: var(--blue);
+}
+
+.block-entry-type {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+}
+
+.block-entry-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.block-entry-annotations {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--teal);
+}
+
+.panel-footer {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  margin: 0 0 12px;
+}
+
+/* ---------- result bar ---------- */
+.result-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: center;
+  margin-top: 14px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.mock-flag {
+  color: var(--accent);
+  font-style: normal;
+}
+
+.app-footer {
+  margin-top: 48px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+@media (max-width: 860px) {
+  .scan-layout {
+    grid-template-columns: 1fr;
+  }
+}

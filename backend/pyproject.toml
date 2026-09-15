@@ -1,0 +1,21 @@
+[project]
+name = "inkwell-backend"
+version = "0.1.0"
+description = "Inkwell API — Lens mode and Scan & Edit mode"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# B008 flags FastAPI's Depends()/File() in argument defaults, which is the
+# framework's intended idiom rather than a bug.
+"app/api/*.py" = ["B008"]

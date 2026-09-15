@@ -1,0 +1,3 @@
+# Install only if you set OCR_ENGINE=cloud_vision (Phase 1).
+-r requirements.txt
+google-cloud-vision>=3.7

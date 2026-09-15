@@ -1,0 +1,8 @@
+# Install only if you self-host PaddleOCR / PP-StructureV3 (Phase 1-2).
+# Heavy: pulls paddlepaddle plus model weights on first run. Keep it out of the
+# default image so the API container stays small.
+-r requirements.txt
+paddleocr>=2.8
+paddlepaddle>=2.6
+numpy>=1.26
+opencv-python-headless>=4.10

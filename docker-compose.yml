@@ -1,0 +1,47 @@
+# Local development. Both services hot-reload on file changes.
+#
+#   docker compose up            -> API on :8000, web on :5173
+#   docker compose --profile phase5 up   -> also starts Postgres
+#
+# Engine selection comes from backend/.env (copy backend/.env.example), which is
+# mounted with the source — so switching engines is an edit and a reload, not a
+# rebuild.
+
+services:
+  backend:
+    build: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_API_TARGET: http://backend:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+  # Phase 5 (persistence). Not started by default.
+  db:
+    profiles: ["phase5"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: inkwell
+      POSTGRES_PASSWORD: inkwell
+      POSTGRES_DB: inkwell
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

@@ -1,4 +1,4 @@
-import type { DocumentStructure, Health, LensResult } from "../types";
+import type { DocumentStructure, ExportDocument, Health, LensResult } from "../types";
 
 /** Empty by default: Vite proxies /api to the backend in dev (see vite.config.ts). */
 const BASE = import.meta.env.VITE_API_BASE ?? "";
@@ -35,8 +35,43 @@ async function postImage<T>(path: string, file: File): Promise<T> {
   return unwrap<T>(await fetch(`${BASE}${path}`, { method: "POST", body: form }));
 }
 
+/** Pull the server's filename out of Content-Disposition, if it gave one. */
+function filenameFrom(header: string | null, fallback: string): string {
+  const match = header?.match(/filename="([^"]+)"/);
+  return match?.[1] ?? fallback;
+}
+
+async function exportAs(
+  format: "docx" | "pdf",
+  document: ExportDocument,
+): Promise<{ blob: Blob; filename: string }> {
+  const response = await fetch(`${BASE}/api/export/${format}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(document),
+  });
+
+  if (!response.ok) {
+    // Error responses are JSON even though success is a binary file.
+    let detail = `Export failed (${response.status})`;
+    try {
+      const body = await response.json();
+      if (typeof body?.detail === "string") detail = body.detail;
+    } catch {
+      /* no JSON body */
+    }
+    throw new ApiError(detail, response.status);
+  }
+
+  return {
+    blob: await response.blob(),
+    filename: filenameFrom(response.headers.get("Content-Disposition"), `notes.${format}`),
+  };
+}
+
 export const api = {
   health: async (): Promise<Health> => unwrap<Health>(await fetch(`${BASE}/api/health`)),
   lens: (file: File) => postImage<LensResult>("/api/lens", file),
   scan: (file: File) => postImage<DocumentStructure>("/api/scan", file),
+  export: exportAs,
 };

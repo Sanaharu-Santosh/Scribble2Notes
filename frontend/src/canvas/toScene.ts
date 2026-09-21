@@ -22,6 +22,20 @@ import type { Annotation, Block, DocumentStructure } from "../types";
 export const BACKGROUND_ELEMENT_ID = "scanned-page";
 export const BACKGROUND_FILE_ID = "scanned-page-file";
 
+/**
+ * Element ids encode what each shape came from, so the canvas can be read back
+ * into a structured document at export time (`fromScene.ts`).
+ *
+ * Without this, exporting would have to re-derive structure from a flat list of
+ * rectangles and text — re-solving the problem Mode 2 already solved, and
+ * badly. Anything *without* this prefix is something the user drew themselves,
+ * which is exactly how the reader tells the two apart.
+ */
+export const ID_PREFIX = "s2n";
+
+export const elementId = (role: string, ...parts: (string | number)[]) =>
+  [ID_PREFIX, role, ...parts].join(":");
+
 /** Faint enough to read the digital text over, strong enough to trace against. */
 export const BACKGROUND_OPACITY = 30;
 
@@ -60,6 +74,7 @@ function textSkeleton(block: Block): Skeleton[] {
     return [
       {
         type: "rectangle",
+        id: elementId("placeholder", block.id),
         x: bbox.x,
         y: bbox.y,
         width: bbox.width,
@@ -75,6 +90,7 @@ function textSkeleton(block: Block): Skeleton[] {
   return [
     {
       type: "text",
+      id: elementId(block.type === "heading" ? "heading" : "paragraph", block.id),
       x: bbox.x,
       y: bbox.y,
       width: bbox.width,
@@ -93,6 +109,7 @@ function tableSkeletons(block: Block): Skeleton[] {
   // come apart the first time someone dragged anything.
   return block.table.cells.map((cell) => ({
     type: "rectangle" as const,
+    id: elementId("cell", block.id, cell.row, cell.col),
     x: cell.quad.bbox.x,
     y: cell.quad.bbox.y,
     width: cell.quad.bbox.width,
@@ -110,6 +127,7 @@ function figureSkeleton(block: Block): Skeleton {
   const { bbox } = block.quad;
   return {
     type: "rectangle",
+    id: elementId("figure", block.id),
     x: bbox.x,
     y: bbox.y,
     width: bbox.width,
@@ -120,10 +138,11 @@ function figureSkeleton(block: Block): Skeleton {
   };
 }
 
-function highlightSkeleton(annotation: Annotation): Skeleton {
+function highlightSkeleton(annotation: Annotation, owner: string, index: number): Skeleton {
   const { bbox } = annotation.quad;
   return {
     type: "rectangle",
+    id: elementId("mark", owner, index, "highlight"),
     x: bbox.x,
     y: bbox.y,
     width: bbox.width,
@@ -136,12 +155,13 @@ function highlightSkeleton(annotation: Annotation): Skeleton {
   };
 }
 
-function markSkeleton(annotation: Annotation): Skeleton {
+function markSkeleton(annotation: Annotation, owner: string, index: number): Skeleton {
   const { bbox } = annotation.quad;
 
   if (annotation.kind === "underline") {
     return {
       type: "line",
+      id: elementId("mark", owner, index, "underline"),
       x: bbox.x,
       y: bbox.y,
       width: bbox.width,
@@ -157,6 +177,7 @@ function markSkeleton(annotation: Annotation): Skeleton {
 
   return {
     type: "rectangle",
+    id: elementId("mark", owner, index, annotation.kind),
     x: bbox.x,
     y: bbox.y,
     width: bbox.width,
@@ -197,10 +218,13 @@ export function structureToScene(structure: DocumentStructure, page: PageImage |
   const ordered = [...structure.blocks].sort((a, b) => a.reading_order - b.reading_order);
 
   for (const block of ordered) {
-    for (const annotation of block.annotations) {
-      if (annotation.kind === "highlight") highlights.push(highlightSkeleton(annotation));
-      else marks.push(markSkeleton(annotation));
-    }
+    block.annotations.forEach((annotation, index) => {
+      if (annotation.kind === "highlight") {
+        highlights.push(highlightSkeleton(annotation, block.id, index));
+      } else {
+        marks.push(markSkeleton(annotation, block.id, index));
+      }
+    });
 
     if (block.type === "table") cells.push(...tableSkeletons(block));
     else if (block.type === "figure") contents.push(figureSkeleton(block));

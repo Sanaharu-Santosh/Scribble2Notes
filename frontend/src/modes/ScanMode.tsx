@@ -6,6 +6,7 @@ import "@excalidraw/excalidraw/index.css";
 
 import { api } from "../api/client";
 import { ImagePicker } from "../components/ImagePicker";
+import { sceneToDocument } from "../canvas/fromScene";
 import { BACKGROUND_ELEMENT_ID, BACKGROUND_OPACITY, structureToScene } from "../canvas/toScene";
 import type { DocumentStructure } from "../types";
 import type { PageImage, Scene } from "../canvas/toScene";
@@ -49,6 +50,7 @@ export function ScanMode() {
   const [busy, setBusy] = useState(false);
   const [showScan, setShowScan] = useState(true);
   const [canvas, setCanvas] = useState<ExcalidrawImperativeAPI | null>(null);
+  const [exporting, setExporting] = useState<"docx" | "pdf" | null>(null);
 
   /*
    * Fit the whole page in view on open.
@@ -119,6 +121,31 @@ export function ScanMode() {
     setCanvas(null);
   }
 
+  async function exportAs(format: "docx" | "pdf") {
+    if (!canvas || !structure) return;
+    setExporting(format);
+    setError(null);
+    try {
+      // Read the canvas, not the detection — by now the user has edited it.
+      const model = sceneToDocument(canvas.getSceneElements(), {
+        width: structure.page_width,
+        height: structure.page_height,
+      });
+      const { blob, filename } = await api.export(format, model);
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setExporting(null);
+    }
+  }
+
   return (
     <section className="mode">
       <header className="mode-header">
@@ -128,6 +155,10 @@ export function ScanMode() {
             Every detected thing is now an object you can change: retype a paragraph, drag a table
             cell, draw an arrow, delete what you don&apos;t want. The scan sits underneath as a
             tracing guide — hide it and you have a clean digital page.
+            <br />
+            Export reads the canvas, so it includes your edits. <b>Word</b> gives you a flowing,
+            editable document; <b>PDF</b> keeps the page exactly as arranged, with the text still
+            selectable. Neither includes the scan itself.
           </p>
         </div>
 
@@ -142,6 +173,12 @@ export function ScanMode() {
               />
               Show the scan
             </label>
+            <button type="button" onClick={() => void exportAs("docx")} disabled={!!exporting}>
+              {exporting === "docx" ? "Building…" : "Export Word"}
+            </button>
+            <button type="button" onClick={() => void exportAs("pdf")} disabled={!!exporting}>
+              {exporting === "pdf" ? "Building…" : "Export PDF"}
+            </button>
             <button type="button" className="ghost" onClick={reset}>
               Try another page
             </button>

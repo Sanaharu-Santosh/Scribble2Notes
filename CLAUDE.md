@@ -42,6 +42,13 @@ npm run dev
   order, so a highlight after its text covers it. Keep the layering.
 - Scan mode stays lazy-loaded in `App.tsx`. Importing it eagerly puts
   Excalidraw back on Lens's critical path.
+- Export reads the canvas (`fromScene.ts`), never `DocumentStructure`. Exporting
+  the detection would silently discard everything the user edited.
+- Element id prefixes (`s2n:...`) are the contract between `toScene` and
+  `fromScene`. Change one and change the other.
+- Anything from the canvas — text *and* colours — is user content on its way
+  into HTML. Text is escaped; colours are validated against a pattern, because
+  they land in `style` attributes.
 - Geometry changes need a test in `backend/tests/test_geometry.py`. A wrong box
   looks like bad OCR, which is an expensive thing to misdiagnose.
 - Engine adapters split response-walking from grouping (see `cloud_vision.py`),

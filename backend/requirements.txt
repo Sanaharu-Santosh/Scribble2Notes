@@ -7,3 +7,9 @@ pillow>=10.4
 # Mode 2's default engine is classical CV — no model weights, no GPU.
 opencv-python-headless>=4.10
 numpy>=1.26
+
+# Export. WeasyPrint is not pure Python — it needs pango/cairo system libraries
+# and at least one font installed. The Dockerfile apt-installs them; on a bare
+# machine see https://doc.courtbouillon.org/weasyprint/stable/first_steps.html
+python-docx>=1.1
+weasyprint>=62

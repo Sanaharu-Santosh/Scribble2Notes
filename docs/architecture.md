@@ -225,6 +225,53 @@ nothing — hence the `requestAnimationFrame` retry.
 font chunks. Lens is the lighter mode and the one people open first, so it
 should not pay for an editor it never shows.
 
+## Export
+
+**Export reads the canvas, not the detection.** By the time someone exports they
+have retyped paragraphs, moved cells and drawn arrows; exporting
+`DocumentStructure` would hand them a file that ignores every edit they made.
+`fromScene.ts` reads the live scene back into `ExportDocument`, using the id
+prefixes from `toScene.ts` to recover structure — so a table is still a table
+after the round trip, without re-deriving it from a flat list of rectangles.
+Elements *without* that prefix are things the user drew, and are carried through
+as their own items rather than dropped.
+
+The two exporters want different things from the same document, which is why
+`ExportItem` carries both geometry and role:
+
+- **DOCX is flow.** Real heading styles (so Word's navigation pane works), real
+  tables with addressable cells, reading order taken from current positions —
+  move a paragraph up the page and it moves up the document. Positions are then
+  discarded. Lines and arrows are dropped: they are spatial marks with no
+  meaning in a flowed document, and they survive in the PDF instead.
+- **PDF is place.** Absolutely positioned HTML rendered by WeasyPrint, so the
+  page looks like what was on screen *and the text is still text* — selectable,
+  searchable, copyable. That is the whole reason not to export a PNG of the
+  canvas, and `test_export.py` asserts it by extracting the text back out.
+
+Scale: scanned pages are ~150dpi and PDF works in points, so `px * 72/150` maps
+a 1240×1754 scan onto exactly A4.
+
+### Two things that bite here
+
+**Word's highlight palette is fixed**, so the page's marker colour is matched to
+the nearest named one — by *hue*, not RGB distance. Highlighter ink is pale and
+grey sits in the middle of the RGB cube, so by Euclidean distance a pale green
+is nearer grey than green: straight RGB matching sends almost every real
+highlight to grey.
+
+**A mark applies to the whole paragraph in DOCX.** The canvas knows an underline
+runs from x=244 to x=634 but not which characters sit under those pixels, and
+recovering that would need per-word coordinates that do not survive the user
+retyping the paragraph. Underlining the whole paragraph is wrong in a way that
+is visible and fixable in two clicks; guessing a character range is wrong in a
+way you would have to hunt for.
+
+**The document is user content and ends up inside HTML.** Text is escaped, and
+colours — which also come from the canvas — are validated against a strict
+pattern rather than escaped, because they land in `style` attributes and there
+is no legitimate colour containing a semicolon.
+
 ## Decisions on record
 
 **Excalidraw, not tldraw, for the Phase 3 canvas.** tldraw's SDK is

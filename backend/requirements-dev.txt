@@ -2,3 +2,6 @@
 pytest>=8.3
 httpx>=0.27
 ruff>=0.6
+# Reads exported PDFs back, so the export tests can assert the text is really
+# text rather than a picture of text.
+pypdf>=5.0

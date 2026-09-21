@@ -12,13 +12,15 @@ tables with real addressable cells, figures, underlines, highlights — and load
 them into a canvas editor as editable objects. Retype a paragraph, drag a table
 cell and its text comes with it, draw an arrow, delete what you don't want. The
 scan sits underneath at low opacity as a tracing guide; hide it and you have a
-clean digital page.
+clean digital page. Export it as **Word** (flowing and editable — real headings,
+real tables) or **PDF** (the page exactly as arranged, with the text still
+selectable rather than a screenshot). Export reads the canvas, so it includes
+whatever you changed.
 
-> **Status: Phase 3.** Both modes work, and Mode 2's page is now editable —
-> every detected thing is an Excalidraw object you can retype, drag, restyle or
-> delete, with the scan locked underneath as a tracing guide you can hide.
-> Structure detection runs locally with no credentials, no model weights and no
-> GPU, in about 100ms a page. What's left is one live check of Mode 1's Cloud
+> **Status: Phase 4.** The loop is closed: scan a page, edit it, export it as a
+> Word document or a PDF — and the export reads the canvas, so your edits are in
+> it. Structure detection runs locally with no credentials, no model weights and
+> no GPU, in about 100ms a page. What's left is one live check of Mode 1's Cloud
 > Vision mapping against a real key:
 > [docs/cloud-vision-setup.md](docs/cloud-vision-setup.md), about fifteen
 > minutes. Until then the text you see is generated while the structure is real.
@@ -136,7 +138,8 @@ with no browser and no server.
 | `paddle` adapter                       | Written, **not yet verified**; assumes the classic `.ocr()` result shape |
 | `ppstructure`, `azure` adapters        | Stubs — install path verified for PP-StructureV3, mapping unwritten |
 | Canvas editing (Excalidraw)            | Real, verified in-browser                     |
-| Export, accounts                       | Not started (Phases 4–5)                      |
+| DOCX / PDF export                      | Real, verified by opening the generated files |
+| Persistence, accounts                  | Not started (Phase 5)                         |
 
 The stubs are stubs on purpose, and PP-StructureV3 is the case in point. Its
 install was actually attempted: paddleocr 3.x renamed the class and **removed**
@@ -178,7 +181,7 @@ scribble2notes/
 
 ```bash
 cd backend
-.venv/bin/python -m pytest      # 59 tests
+.venv/bin/python -m pytest      # 85 tests
 .venv/bin/python -m ruff check app tests scripts fixtures
 
 cd ../frontend
@@ -196,6 +199,10 @@ Two areas get their own files, because both fail silently rather than loudly:
   check is a confirmation rather than a debugging session. It covers the things
   that actually break: break-type handling, line quads keeping their slant, and
   the field-spelling differences between library versions.
+- **The exports** (`test_export.py`). The generated files are opened and read
+  back, not byte-counted: the DOCX must have real heading styles and a real
+  table with addressable cells, and the PDF's text must *extract as text* —
+  which is the entire difference between this and exporting a picture.
 - **CV detection** (`test_layout_detect.py`). `fixtures/make_structured_page.py`
   draws a page *and records where it put everything*, so these are real
   assertions — the table is within 0.9 IoU of the real one and has exactly four
@@ -227,7 +234,7 @@ makes it obvious later when a real engine lands badly.
 | 1     | Real Mode 1: line grouping, fixture replay, engine CLI — **done**, live key check outstanding |
 | 2     | Real Mode 2: CV structure engine, tables as real grids, annotations — **done** |
 | 3     | Editable canvas (Excalidraw) — **done** (the CV annotation pass landed in Phase 2) |
-| 4     | Export: scene → DOCX (`python-docx`), scene → PDF (WeasyPrint) |
+| 4     | Export: scene → DOCX (`python-docx`), scene → PDF (WeasyPrint) — **done** |
 | 5     | Persistence, storage, accounts                          |
 | 6     | Optional: retrain the original CRNN into an offline engine |
 | 7     | Deployment                                              |

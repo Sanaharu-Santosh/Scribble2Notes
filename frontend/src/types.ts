@@ -97,6 +97,49 @@ export interface DocumentStructure {
   engine: EngineInfo;
 }
 
+/* ---- export (mirrors backend/app/schemas/export.py) ---- */
+
+export type ItemKind = "heading" | "paragraph" | "table" | "figure" | "line" | "arrow";
+
+export interface ExportMark {
+  kind: "underline" | "highlight" | "box";
+  color?: string | null;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface ExportTable {
+  rows: number;
+  cols: number;
+  cells: { row: number; col: number; text: string }[];
+}
+
+export interface ExportItem {
+  id: string;
+  kind: ItemKind;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  reading_order: number;
+  text?: string | null;
+  font_size?: number | null;
+  color?: string | null;
+  background?: string | null;
+  marks?: ExportMark[];
+  table?: ExportTable | null;
+  points?: [number, number][] | null;
+}
+
+export interface ExportDocument {
+  page_width: number;
+  page_height: number;
+  title?: string | null;
+  items: ExportItem[];
+}
+
 export interface Health {
   status: string;
   environment: string;

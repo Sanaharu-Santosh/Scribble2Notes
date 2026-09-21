@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import health, lens, scan
+from app.api import export, health, lens, scan
 from app.config import get_settings
 from app.services.images import UnreadableImageError
 from app.services.layout.base import LayoutEngineError
@@ -45,6 +45,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix="/api")
     app.include_router(lens.router, prefix="/api")
     app.include_router(scan.router, prefix="/api")
+    app.include_router(export.router, prefix="/api")
 
     @app.exception_handler(UnreadableImageError)
     async def _unreadable_image(_: Request, exc: UnreadableImageError) -> JSONResponse:

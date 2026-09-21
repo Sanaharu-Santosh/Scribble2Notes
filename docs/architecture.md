@@ -179,6 +179,52 @@ layout model. They come from our own OpenCV pass (Phase 3) and arrive as
 
 Expect iterative tuning here, not a library import. Budget accordingly.
 
+## The canvas
+
+`frontend/src/canvas/toScene.ts` turns a `DocumentStructure` into an Excalidraw
+scene. Built from *skeletons* passed through `convertToExcalidrawElements`, not
+hand-written elements: real Excalidraw elements carry seeds, version nonces and
+binding metadata that are easy to get subtly wrong and that the library will
+happily regenerate for you.
+
+Each detected thing becomes the kind of object you would have drawn yourself:
+
+| Detected | Becomes | Why that shape |
+| --- | --- | --- |
+| paragraph / heading | text element | retypeable in place |
+| table cell | rectangle with a bound `label` | the text travels with the cell when dragged or resized; loose text beside a line would come apart on the first drag |
+| block with no recognized text | dashed rectangle | says "type into me" instead of silently dropping a region that is really there |
+| highlight | filled rectangle, 55% opacity | sits *behind* the words, as marker does |
+| underline | line | |
+| box | stroked rectangle | |
+| the scan itself | locked image at 30% opacity | |
+
+**Elements are emitted in layers, not in reading order.** Z-order is array
+order, so a highlight written after its text would cover it and an underline
+written before its text would be hidden — the stacking has to match what the
+marks do on paper: background, highlights, cells, text, then marks on top.
+
+**The background is locked.** Without it, the first drag moves the scanned page
+out from under everything aligned to it. Toggling it changes only opacity, so
+hiding it leaves a clean digital page and showing it again disturbs nothing the
+user has moved.
+
+**Font size divides by `line_count`.** Block height alone gives a two-line
+paragraph type twice the size it should have — the same trap as heading
+classification, one layer up. That is why `Block.line_count` exists in the
+schema at all.
+
+**Fitting the page needs `fitToViewport`, imperatively.** `scrollToContent` in
+`initialData` centres the page but holds 100% zoom, so an A4 scan opens showing
+its top third; `fitToContent` caps at 100% and cannot zoom out far enough
+either. And the imperative API is handed to you a frame before the scene is
+measurable, so fitting immediately fits an empty scene and silently does
+nothing — hence the `requestAnimationFrame` retry.
+
+**Scan mode is lazy-loaded.** Excalidraw is ~750KB gzipped-to-190KB plus its
+font chunks. Lens is the lighter mode and the one people open first, so it
+should not pay for an editor it never shows.
+
 ## Decisions on record
 
 **Excalidraw, not tldraw, for the Phase 3 canvas.** tldraw's SDK is

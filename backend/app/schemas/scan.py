@@ -60,6 +60,14 @@ class Block(BaseModel):
     quad: Quad
     reading_order: int
     text: str | None = None
+    line_count: int | None = Field(
+        default=None,
+        description=(
+            "Lines of text in this block. The canvas divides the block height by "
+            "it to size the font: without it, a two-line paragraph gets type "
+            "twice as large as it should."
+        ),
+    )
     table: Table | None = None
     figure_ref: str | None = Field(
         default=None,

@@ -83,6 +83,8 @@ export interface Block {
   quad: Quad;
   reading_order: number;
   text: string | null;
+  /** Lines of text in the block — the canvas sizes its font from this. */
+  line_count: number | null;
   table: Table | null;
   figure_ref: string | null;
   annotations: Annotation[];

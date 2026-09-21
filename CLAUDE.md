@@ -35,6 +35,13 @@ npm run dev
   with a readable `detail`. The frontend shows that text verbatim, so write the
   message for the person reading it.
 - `frontend/src/types.ts` mirrors `backend/app/schemas/`. Change both together.
+- Canvas elements are built as *skeletons* through `convertToExcalidrawElements`,
+  never hand-written: real elements carry seeds, nonces and binding metadata
+  that are easy to get subtly wrong.
+- `toScene.ts` emits elements in layers, not reading order. Z-order is array
+  order, so a highlight after its text covers it. Keep the layering.
+- Scan mode stays lazy-loaded in `App.tsx`. Importing it eagerly puts
+  Excalidraw back on Lens's critical path.
 - Geometry changes need a test in `backend/tests/test_geometry.py`. A wrong box
   looks like bad OCR, which is an expensive thing to misdiagnose.
 - Engine adapters split response-walking from grouping (see `cloud_vision.py`),

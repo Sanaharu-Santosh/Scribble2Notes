@@ -8,14 +8,18 @@ web. The image is never modified; the text sits on top of it, rotated and scaled
 to match the ink underneath.
 
 **Scan & Edit** breaks a whole page into typed blocks — paragraphs, headings,
-tables with real addressable cells, figures, underlines, highlights — so the page
-can be rebuilt as an editable document rather than a picture of one.
+tables with real addressable cells, figures, underlines, highlights — and loads
+them into a canvas editor as editable objects. Retype a paragraph, drag a table
+cell and its text comes with it, draw an arrow, delete what you don't want. The
+scan sits underneath at low opacity as a tracing guide; hide it and you have a
+clean digital page.
 
-> **Status: Phase 2.** Both modes work. Mode 2's structure detection —
-> ruled tables as real cell grids, drawn boxes, underlines, highlights — runs
-> locally with no credentials, no model weights and no GPU, in about 100ms a
-> page. Mode 1's Cloud Vision mapping is implemented and unit-tested, and needs
-> one live check against a real key to be done:
+> **Status: Phase 3.** Both modes work, and Mode 2's page is now editable —
+> every detected thing is an Excalidraw object you can retype, drag, restyle or
+> delete, with the scan locked underneath as a tracing guide you can hide.
+> Structure detection runs locally with no credentials, no model weights and no
+> GPU, in about 100ms a page. What's left is one live check of Mode 1's Cloud
+> Vision mapping against a real key:
 > [docs/cloud-vision-setup.md](docs/cloud-vision-setup.md), about fifteen
 > minutes. Until then the text you see is generated while the structure is real.
 
@@ -131,7 +135,8 @@ with no browser and no server.
 | `opencv` structure engine              | Real, tested against a page with recorded ground truth |
 | `paddle` adapter                       | Written, **not yet verified**; assumes the classic `.ocr()` result shape |
 | `ppstructure`, `azure` adapters        | Stubs — install path verified for PP-StructureV3, mapping unwritten |
-| Canvas editing, export, accounts       | Not started (Phases 3–5)                      |
+| Canvas editing (Excalidraw)            | Real, verified in-browser                     |
+| Export, accounts                       | Not started (Phases 4–5)                      |
 
 The stubs are stubs on purpose, and PP-StructureV3 is the case in point. Its
 install was actually attempted: paddleocr 3.x renamed the class and **removed**
@@ -160,7 +165,8 @@ scribble2notes/
 │   └── tests/
 ├── frontend/
 │   └── src/
-│       ├── components/    # TextOverlay (the Lens trick), BlockOverlay
+│       ├── canvas/        # DocumentStructure -> Excalidraw scene
+│       ├── components/    # TextOverlay (the Lens trick), ImagePicker
 │       ├── modes/         # LensMode, ScanMode
 │       └── types.ts       # mirrors backend/app/schemas
 └── docs/
@@ -220,7 +226,7 @@ makes it obvious later when a real engine lands badly.
 | 0     | Scaffold, engine seam, mocks, working overlay — **done** |
 | 1     | Real Mode 1: line grouping, fixture replay, engine CLI — **done**, live key check outstanding |
 | 2     | Real Mode 2: CV structure engine, tables as real grids, annotations — **done** |
-| 3     | Editable canvas (Excalidraw) + the OpenCV underline/highlight pass |
+| 3     | Editable canvas (Excalidraw) — **done** (the CV annotation pass landed in Phase 2) |
 | 4     | Export: scene → DOCX (`python-docx`), scene → PDF (WeasyPrint) |
 | 5     | Persistence, storage, accounts                          |
 | 6     | Optional: retrain the original CRNN into an offline engine |

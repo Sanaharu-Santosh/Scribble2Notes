@@ -171,6 +171,7 @@ class OpenCvLayoutEngine(LayoutEngine):
                     quad=_quad(text_block.rect),
                     reading_order=index,
                     text=_text_for(text_block.rect, regions),
+                    line_count=text_block.line_count,
                 )
             )
 

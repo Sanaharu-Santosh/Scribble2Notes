@@ -1,47 +1,122 @@
-import { useEffect, useRef, useState } from "react";
+import { Excalidraw } from "@excalidraw/excalidraw";
+import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import { useCallback, useEffect, useState } from "react";
+
+import "@excalidraw/excalidraw/index.css";
 
 import { api } from "../api/client";
-import { BlockOverlay } from "../components/BlockOverlay";
 import { ImagePicker } from "../components/ImagePicker";
-import { useRenderedScale } from "../hooks";
-import type { Block, DocumentStructure } from "../types";
+import { BACKGROUND_ELEMENT_ID, BACKGROUND_OPACITY, structureToScene } from "../canvas/toScene";
+import type { DocumentStructure } from "../types";
+import type { PageImage, Scene } from "../canvas/toScene";
 
-function blockSummary(block: Block): string {
-  if (block.type === "table" && block.table) {
-    return `${block.table.rows} × ${block.table.cols} grid, ${block.table.cells.length} cells`;
-  }
-  if (block.type === "figure") return "figure region (cropped in Phase 5)";
-  return block.text ?? "—";
+function readPageImage(file: File): Promise<PageImage> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Could not read that image"));
+    reader.onload = () => {
+      const dataURL = String(reader.result);
+      const probe = new Image();
+      probe.onload = () =>
+        resolve({
+          dataURL,
+          mimeType: file.type || "image/png",
+          width: probe.naturalWidth,
+          height: probe.naturalHeight,
+        });
+      probe.onerror = () => reject(new Error("Could not decode that image"));
+      probe.src = dataURL;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function summarize(structure: DocumentStructure): string {
+  const tables = structure.blocks.filter((block) => block.type === "table");
+  const cells = tables.reduce((total, block) => total + (block.table?.cells.length ?? 0), 0);
+  const marks = structure.blocks.reduce((total, block) => total + block.annotations.length, 0);
+
+  const parts = [`${structure.blocks.length} blocks`];
+  if (tables.length) parts.push(`${tables.length} table${tables.length > 1 ? "s" : ""} (${cells} cells)`);
+  if (marks) parts.push(`${marks} annotation${marks > 1 ? "s" : ""}`);
+  return parts.join(" · ");
 }
 
 export function ScanMode() {
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [result, setResult] = useState<DocumentStructure | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [scene, setScene] = useState<Scene | null>(null);
+  const [structure, setStructure] = useState<DocumentStructure | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showScan, setShowScan] = useState(true);
+  const [canvas, setCanvas] = useState<ExcalidrawImperativeAPI | null>(null);
 
-  const imageRef = useRef<HTMLImageElement>(null);
-  const scale = useRenderedScale(imageRef, result?.page_width);
-
+  /*
+   * Fit the whole page in view on open.
+   *
+   * Two traps here. `scrollToContent` in initialData centres the page but keeps
+   * 100% zoom, so an A4 scan opens showing its top third — hence doing it
+   * imperatively with `fitToViewport`, which is allowed to zoom *out*
+   * (`fitToContent` caps at 100% and would not help). And the API becomes
+   * available a frame before the scene is measurable, so asking immediately
+   * fits against an empty scene and silently does nothing.
+   */
   useEffect(() => {
-    if (!imageUrl) return;
-    return () => URL.revokeObjectURL(imageUrl);
-  }, [imageUrl]);
+    if (!canvas) return;
+    let cancelled = false;
 
-  async function handlePick(picked: File) {
-    setImageUrl(URL.createObjectURL(picked));
+    const fit = () => {
+      if (cancelled) return;
+      const elements = canvas.getSceneElements();
+      if (!elements.length) {
+        requestAnimationFrame(fit);
+        return;
+      }
+      canvas.scrollToContent(elements, {
+        fitToViewport: true,
+        viewportZoomFactor: 0.9,
+        animate: false,
+      });
+    };
+
+    requestAnimationFrame(fit);
+    return () => {
+      cancelled = true;
+    };
+  }, [canvas]);
+
+  // The scan is a tracing guide, not content — toggling it changes only its
+  // opacity, so hiding it leaves a clean digital page and showing it again
+  // doesn't disturb anything the user has moved.
+  useEffect(() => {
+    if (!canvas) return;
+    const next = canvas.getSceneElements().map((element) =>
+      element.id === BACKGROUND_ELEMENT_ID
+        ? { ...element, opacity: showScan ? BACKGROUND_OPACITY : 0 }
+        : element,
+    );
+    canvas.updateScene({ elements: next });
+  }, [canvas, showScan]);
+
+  const handlePick = useCallback(async (picked: File) => {
     setBusy(true);
     setError(null);
-    setResult(null);
-    setSelectedId(null);
+    setScene(null);
+    setStructure(null);
     try {
-      setResult(await api.scan(picked));
+      const [page, result] = await Promise.all([readPageImage(picked), api.scan(picked)]);
+      setStructure(result);
+      setScene(structureToScene(result, page));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
       setBusy(false);
     }
+  }, []);
+
+  function reset() {
+    setScene(null);
+    setStructure(null);
+    setCanvas(null);
   }
 
   return (
@@ -50,14 +125,31 @@ export function ScanMode() {
         <div>
           <h2>Scan &amp; Edit</h2>
           <p>
-            The page is broken into typed blocks — paragraphs, tables with real cells, figures,
-            underlines and highlights. Phase 3 turns these into editable canvas objects; for now
-            they are drawn so you can check the structure is right.
+            Every detected thing is now an object you can change: retype a paragraph, drag a table
+            cell, draw an arrow, delete what you don&apos;t want. The scan sits underneath as a
+            tracing guide — hide it and you have a clean digital page.
           </p>
         </div>
+
+        {structure && (
+          <div className="toolbar">
+            <label className="toggle">
+              <input
+                type="checkbox"
+                id="show-scan"
+                checked={showScan}
+                onChange={(event) => setShowScan(event.target.checked)}
+              />
+              Show the scan
+            </label>
+            <button type="button" className="ghost" onClick={reset}>
+              Try another page
+            </button>
+          </div>
+        )}
       </header>
 
-      {!imageUrl && (
+      {!scene && (
         <ImagePicker
           onPick={handlePick}
           busy={busy}
@@ -67,59 +159,30 @@ export function ScanMode() {
       )}
 
       {error && <p className="error-banner">{error}</p>}
-      {busy && <p className="status">Analyzing the page…</p>}
+      {busy && <p className="status">Reading the page…</p>}
 
-      {imageUrl && (
-        <div className="scan-layout">
-          <div className="stage">
-            <img ref={imageRef} src={imageUrl} alt="Scanned page" />
-            {result && scale > 0 && (
-              <BlockOverlay
-                blocks={result.blocks}
-                scale={scale}
-                selectedId={selectedId}
-                onSelect={(id) => setSelectedId((current) => (current === id ? null : id))}
-              />
-            )}
+      {scene && structure && (
+        <>
+          <div className="canvas-frame">
+            <Excalidraw
+              excalidrawAPI={setCanvas}
+              initialData={{
+                elements: scene.elements,
+                files: scene.files,
+                appState: { viewBackgroundColor: "#ffffff" },
+              }}
+            />
           </div>
 
-          {result && (
-            <aside className="block-list">
-              <h3>Blocks in reading order</h3>
-              <ol>
-                {[...result.blocks]
-                  .sort((a, b) => a.reading_order - b.reading_order)
-                  .map((block) => (
-                    <li key={block.id}>
-                      <button
-                        type="button"
-                        className={`block-entry${block.id === selectedId ? " is-selected" : ""}`}
-                        onClick={() =>
-                          setSelectedId((current) => (current === block.id ? null : block.id))
-                        }
-                      >
-                        <span className="block-entry-type">{block.type}</span>
-                        <span className="block-entry-text">{blockSummary(block)}</span>
-                        {block.annotations.length > 0 && (
-                          <span className="block-entry-annotations">
-                            {block.annotations.map((annotation) => annotation.kind).join(", ")}
-                          </span>
-                        )}
-                      </button>
-                    </li>
-                  ))}
-              </ol>
-              <p className="panel-footer">
-                engine <b>{result.engine.name}</b>
-                {result.engine.is_mock && <em className="mock-flag"> (mock)</em>} ·{" "}
-                {result.engine.duration_ms} ms
-              </p>
-              <button type="button" className="ghost" onClick={() => setImageUrl(null)}>
-                Try another page
-              </button>
-            </aside>
-          )}
-        </div>
+          <div className="result-bar">
+            <span>{summarize(structure)}</span>
+            <span>
+              engine <b>{structure.engine.name}</b>
+              {structure.engine.is_mock && <em className="mock-flag"> (mock)</em>}
+            </span>
+            <span>{structure.engine.duration_ms} ms</span>
+          </div>
+        </>
       )}
     </section>
   );

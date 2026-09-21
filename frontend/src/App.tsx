@@ -1,9 +1,17 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 
 import { api } from "./api/client";
 import { LensMode } from "./modes/LensMode";
-import { ScanMode } from "./modes/ScanMode";
 import type { Health } from "./types";
+
+/*
+ * Scan mode pulls in Excalidraw, which is over a megabyte before its fonts.
+ * Loading it lazily keeps that off the critical path for Lens, which is the
+ * lighter of the two modes and the one people open first.
+ */
+const ScanMode = lazy(() =>
+  import("./modes/ScanMode").then((module) => ({ default: module.ScanMode })),
+);
 
 type Mode = "lens" | "scan";
 
@@ -82,7 +90,15 @@ export function App() {
         </p>
       )}
 
-      <main>{mode === "lens" ? <LensMode /> : <ScanMode />}</main>
+      <main>
+        {mode === "lens" ? (
+          <LensMode />
+        ) : (
+          <Suspense fallback={<p className="status">Loading the editor…</p>}>
+            <ScanMode />
+          </Suspense>
+        )}
+      </main>
 
       <footer className="app-footer">
         Structure detection runs locally with no key. Reading the handwriting needs one — see{" "}

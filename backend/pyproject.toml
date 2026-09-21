@@ -1,7 +1,7 @@
 [project]
-name = "inkwell-backend"
+name = "scribble2notes-backend"
 version = "0.1.0"
-description = "Inkwell API — Lens mode and Scan & Edit mode"
+description = "Scribble2Notes API — Lens mode and Scan & Edit mode"
 requires-python = ">=3.11"
 
 [tool.pytest.ini_options]

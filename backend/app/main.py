@@ -1,4 +1,4 @@
-"""Inkwell API entry point."""
+"""Scribble2Notes API entry point."""
 
 from __future__ import annotations
 

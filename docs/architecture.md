@@ -47,6 +47,54 @@ The reads and writes are batched — clear every transform, measure every width,
 then write every transform — because interleaving them forces a reflow per
 region, which is visible on a page with a hundred lines.
 
+### Separators are load-bearing
+
+Absolutely positioned spans sit next to each other in the DOM with nothing
+between them, so a selection spanning several regions serializes as
+`"...modelsCTC solves..."` — the copied text runs together and the headline
+feature is worthless. `TextOverlay` inserts a `<br>` after each line region and a
+space after each word region to fix that.
+
+Those separators only survive because `.overlay` sets `white-space: pre`: a
+whitespace-only text node in a normal-flow container is collapsed away, and
+collapsed whitespace does not appear in the serialized selection. The same rule
+sets `font-size: 0` and `line-height: 0` there, so the separators can't paint a
+stray selection highlight in the corner; region spans set their own font size
+inline and are unaffected.
+
+If copied text ever loses its line breaks, this CSS rule is the first place to
+look — it fails silently and only in the clipboard.
+
+## Words in, lines out
+
+Engines detect *words*. The app shows *lines*, because dragging across a whole
+line is what selection is for — word-by-word selection feels broken even when
+every word is correct.
+
+Cloud Vision marks line endings on the symbol they follow, via
+`detected_break`: `EOL_SURE_SPACE`, `LINE_BREAK` and `HYPHEN` end a line, while
+`SPACE` and `SURE_SPACE` join words within one. `group_into_lines` walks those
+and flushes a region at each ending. Two defensive details:
+
+- A paragraph boundary always ends a line, even when the response carries no
+  break — otherwise one missing field silently merges two paragraphs into a
+  single unreadable region.
+- Break types are compared as integers, not by importing the enum. The field has
+  been spelled `type` and `type_` across library releases and the enum's import
+  path has moved; the numbers have not.
+
+A line's quad is built from the first word's left corners and the last word's
+right corners, *not* a bounding box around all of them. For slanted writing a
+bounding box is taller than the text, and the overlay sizes its font from the
+quad height — so a bounding box would render every slanted line too large. When
+words aren't in left-to-right order (the right edge lands left of the left edge)
+the merge falls back to a bounding box, accepting the lost slant over a
+nonsensical quad.
+
+`OCR_GRANULARITY=word` turns grouping off. That exists as a diagnostic: run a
+bad page both ways and you learn whether grouping or detection is at fault,
+which are fixed in completely different places.
+
 ## The engine seam
 
 `OcrEngine` and `LayoutEngine` (in `services/*/base.py`) are the only types the

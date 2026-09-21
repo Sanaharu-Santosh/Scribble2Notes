@@ -5,8 +5,11 @@
 ```bash
 # backend (from backend/)
 .venv/bin/python -m pytest
-.venv/bin/python -m ruff check app tests
+.venv/bin/python -m ruff check app tests scripts fixtures
 uvicorn app.main:app --reload
+
+# run one image through one engine — faster than the browser for engine work
+python scripts/try_engine.py --image page.jpg [--engine cloud_vision] [--granularity word]
 
 # frontend (from frontend/)
 npm run typecheck
@@ -29,6 +32,13 @@ npm run dev
 - `frontend/src/types.ts` mirrors `backend/app/schemas/`. Change both together.
 - Geometry changes need a test in `backend/tests/test_geometry.py`. A wrong box
   looks like bad OCR, which is an expensive thing to misdiagnose.
+- Engine adapters split response-walking from grouping (see `cloud_vision.py`),
+  so the mapping can be tested against hand-built responses with no credentials.
+  Keep that split in any new adapter.
+- Tests pin their own engine settings via the `hermetic_settings` fixture in
+  `conftest.py`. Don't read real config in a test — use `use_settings()`.
+- Don't spend live API quota on work a fixture can serve: capture once with
+  `try_engine.py --save-fixture`, then `OCR_ENGINE=fixture`.
 
 ## Please don't
 

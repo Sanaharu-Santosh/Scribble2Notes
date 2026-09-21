@@ -296,6 +296,20 @@ button:focus-visible {
 }
 
 /*
+ * The separators TextOverlay puts between regions are whitespace-only text
+ * nodes and <br>s in normal flow. Without `white-space: pre` the browser
+ * collapses them away and a multi-line selection copies as one run-on string.
+ * Zero font-size and line-height keep them from painting a stray selection
+ * highlight in the corner — the region spans set their own font-size inline,
+ * so they are unaffected.
+ */
+.overlay:has(.overlay-text) {
+  white-space: pre;
+  font-size: 0;
+  line-height: 0;
+}
+
+/*
  * The selectable text layer. Transparent glyphs, visible selection — so the
  * user sees their own photo but the browser sees real text.
  */

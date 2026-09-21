@@ -7,14 +7,15 @@ from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-OcrEngineName = Literal["mock", "cloud_vision", "paddle"]
+OcrEngineName = Literal["mock", "fixture", "cloud_vision", "paddle"]
 LayoutEngineName = Literal["mock", "ppstructure", "azure"]
+OcrGranularity = Literal["line", "word"]
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    app_name: str = "Inkwell"
+    app_name: str = "Scribble2Notes"
     environment: str = "development"
 
     # Comma-separated. Kept as a string so a plain .env file stays readable.
@@ -24,6 +25,16 @@ class Settings(BaseSettings):
     # so these are the only lines that change when you swap providers.
     ocr_engine: OcrEngineName = "mock"
     layout_engine: LayoutEngineName = "mock"
+
+    # Selecting a whole line feels far better than selecting word by word, so
+    # engines group their output into lines by default. Switch to "word" to see
+    # the raw detection granularity — useful when an engine's line grouping
+    # looks wrong and you need to know whether detection or grouping is at fault.
+    ocr_granularity: OcrGranularity = "line"
+
+    # Replay a saved response instead of calling an API (OCR_ENGINE=fixture).
+    # Capture one with: python scripts/try_engine.py --image page.png --save-fixture
+    ocr_fixture_path: str = "fixtures/lens_fixture.json"
 
     # Google Cloud Vision (Mode 1 default once you have credentials)
     google_application_credentials: str | None = None

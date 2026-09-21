@@ -35,9 +35,9 @@ services:
     profiles: ["phase5"]
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: inkwell
-      POSTGRES_PASSWORD: inkwell
-      POSTGRES_DB: inkwell
+      POSTGRES_USER: scribble
+      POSTGRES_PASSWORD: scribble
+      POSTGRES_DB: scribble2notes
     ports:
       - "5432:5432"
     volumes:

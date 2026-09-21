@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from "react";
+import { Fragment, useLayoutEffect, useRef } from "react";
 
 import type { Quad, TextRegion } from "../types";
 
@@ -60,26 +60,38 @@ export function TextOverlay({ regions, scale, showBoxes }: Props) {
 
   return (
     <div className="overlay" aria-label="Recognized text layer">
-      {regions.map((region) => {
+      {regions.map((region, index) => {
         const [topLeft] = region.quad.points;
+        const isLast = index === regions.length - 1;
+
         return (
-          <span
-            key={region.id}
-            ref={(element) => {
-              if (element) spans.current.set(region.id, element);
-              else spans.current.delete(region.id);
-            }}
-            className="overlay-text"
-            title={`${region.text} — ${Math.round(region.confidence * 100)}% confident`}
-            style={{
-              left: `${topLeft.x * scale}px`,
-              top: `${topLeft.y * scale}px`,
-              fontSize: `${region.quad.height * scale}px`,
-              outline: showBoxes ? `1px solid ${confidenceColor(region.confidence)}` : undefined,
-            }}
-          >
-            {region.text}
-          </span>
+          <Fragment key={region.id}>
+            <span
+              ref={(element) => {
+                if (element) spans.current.set(region.id, element);
+                else spans.current.delete(region.id);
+              }}
+              className="overlay-text"
+              title={`${region.text} — ${Math.round(region.confidence * 100)}% confident`}
+              style={{
+                left: `${topLeft.x * scale}px`,
+                top: `${topLeft.y * scale}px`,
+                fontSize: `${region.quad.height * scale}px`,
+                outline: showBoxes ? `1px solid ${confidenceColor(region.confidence)}` : undefined,
+              }}
+            >
+              {region.text}
+            </span>
+            {/*
+              Separators, so a selection spanning regions copies as readable
+              text. The spans are absolutely positioned, so without something
+              between them the browser serializes a multi-line selection as
+              "...modelsCTC solves..." — which defeats the whole point of the
+              feature. A <br> serializes as a newline and a text node as a
+              space; neither paints anything or affects the width measured above.
+            */}
+            {!isLast && (region.level === "line" ? <br /> : " ")}
+          </Fragment>
         );
       })}
     </div>

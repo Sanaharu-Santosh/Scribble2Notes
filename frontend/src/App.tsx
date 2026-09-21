@@ -23,9 +23,9 @@ export function App() {
     <div className="app">
       <header className="app-header">
         <div className="brand">
-          <span className="brand-mark">I</span>
+          <span className="brand-mark">S</span>
           <div>
-            <h1>Inkwell</h1>
+            <h1>Scribble2Notes</h1>
             <p>Handwritten pages in, usable text out.</p>
           </div>
         </div>

@@ -114,6 +114,58 @@ Three things this buys:
 Engines are cached (`@lru_cache`) because a self-hosted model loads weights on
 construction; building one per request would be pathological.
 
+## Structure without a model
+
+Mode 2's default engine (`opencv`) finds structure with morphology rather than a
+document model. That is a deliberate choice, not a stopgap.
+
+A page of notes is ruled with a pen. Its tables are *lines*; its boxes are
+*lines*; its underlines are *lines*; its highlights are *colour*. Morphology
+finds those exactly, in about 100ms on a CPU, with nothing to download — where a
+document model trained on printed PDFs is heavier, slower, and less sure about a
+hand-ruled grid. And since underlines and highlights were always going to be
+ours to detect, extracting horizontal lines for them makes table rules and box
+edges fall out of the same pass.
+
+The pipeline, in `services/layout/detect.py`:
+
+1. Otsu threshold to an ink mask — a photographed page is never the same
+   brightness twice, so a fixed threshold is no use.
+2. Open with a long thin kernel, once horizontally and once vertically, to leave
+   only rules. Gaps are closed with a *closing*, never a dilation: dilation
+   stretches every line by the kernel length, which surfaces later as underlines
+   wider than the words above them.
+3. Connected components of `horizontal | vertical` give one blob per ruled
+   rectangle. Crossings inside each blob cluster into row and column edges.
+4. A grid with more than one cell is a table; a one-cell grid is a drawn box.
+
+Step 3 is the part worth understanding. An earlier version clustered the
+crossing points themselves by coordinate alignment, and merged the table with a
+box two hundred pixels below it because they shared a left margin. **Alignment is
+not connection.** Components of the ruling mask encode actual connection, which
+is what "same table" means.
+
+Text blocks come from the same mask with the ruling subtracted (grown slightly
+first, or anti-aliased line edges survive as phantom paragraphs), smeared
+horizontally into lines and then vertically into paragraphs.
+
+Headings are classified by *line* height, never block height — a two-line
+paragraph is taller than a one-line title, so comparing block heights labels
+paragraphs as headings. `TextBlock.line_count` exists for exactly this.
+
+### Structure and text are different problems
+
+The `opencv` engine finds structure but cannot read. When `LAYOUT_FILL_TEXT` is
+on it asks whichever `OCR_ENGINE` is configured for the page's words, then files
+each recognized region into the block or cell containing its centre point —
+centre containment rather than overlap, so a line poking a few pixels past a
+cell border still belongs to one cell instead of two.
+
+This composition is why Mode 2 improves for free whenever Mode 1's engine
+does, and why neither half needs rewriting when the other changes. An OCR
+failure is caught and ignored: structure without text still beats failing a
+whole scan because a key expired.
+
 ## What no engine gives you
 
 Underlines, highlights and hand-drawn boxes are not classes in any mainstream

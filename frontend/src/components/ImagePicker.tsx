@@ -5,11 +5,14 @@ interface Props {
   busy: boolean;
   /** Shown inside the drop area so each mode can say what it will do. */
   hint: string;
+  /**
+   * Each mode demos a different page: Lens wants lines of writing, Scan wants
+   * something with a table and a box on it.
+   */
+  samplePath?: string;
 }
 
-const SAMPLE_PATH = "/sample-note.png";
-
-export function ImagePicker({ onPick, busy, hint }: Props) {
+export function ImagePicker({ onPick, busy, hint, samplePath = "/sample-note.png" }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [sampleError, setSampleError] = useState<string | null>(null);
@@ -24,10 +27,11 @@ export function ImagePicker({ onPick, busy, hint }: Props) {
   async function useSample() {
     setSampleError(null);
     try {
-      const response = await fetch(SAMPLE_PATH);
+      const response = await fetch(samplePath);
       if (!response.ok) throw new Error(`Sample page missing (${response.status})`);
       const blob = await response.blob();
-      onPick(new File([blob], "sample-note.png", { type: blob.type || "image/png" }));
+      const name = samplePath.split("/").pop() ?? "sample.png";
+      onPick(new File([blob], name, { type: blob.type || "image/png" }));
     } catch (error) {
       setSampleError(error instanceof Error ? error.message : String(error));
     }

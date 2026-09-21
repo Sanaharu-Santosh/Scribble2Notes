@@ -1,8 +1,21 @@
-# Install only if you self-host PaddleOCR / PP-StructureV3 (Phase 1-2).
-# Heavy: pulls paddlepaddle plus model weights on first run. Keep it out of the
-# default image so the API container stays small.
+# Only needed for OCR_ENGINE=paddle or LAYOUT_ENGINE=ppstructure.
+#
+# Heavy: paddlepaddle plus model weights downloaded on first run. Kept out of
+# the default install and out of the backend image on purpose — the API
+# container stays ~200 MB without it and multiple gigabytes with it.
 -r requirements.txt
-paddleocr>=2.8
-paddlepaddle>=2.6
-numpy>=1.26
-opencv-python-headless>=4.10
+paddleocr>=3.7
+paddlepaddle>=3.3
+
+# NOT OPTIONAL for PP-StructureV3, despite what the paddleocr install implies.
+# Without the matching paddlex extra, constructing the pipeline fails with
+# paddlex.utils.deps.DependencyError. The version must match the paddlex that
+# paddleocr pulled in, so install it after the two lines above:
+#
+#   pip install "paddlex[ocr]==$(python -c 'import paddlex; print(paddlex.__version__)')"
+#
+# It is written as a command rather than a pin here because the right version is
+# whatever paddleocr resolved, not one we can fix in advance.
+
+# First construction also downloads weights from HuggingFace, ModelScope,
+# AIStudio or BOS — at least one must be reachable from the machine.

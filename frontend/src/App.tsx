@@ -61,17 +61,32 @@ export function App() {
 
       {health?.using_mocks && (
         <p className="banner banner-mock">
-          Running on mock engines — the text below is generated, not read from your image. Set{" "}
-          <code>OCR_ENGINE</code> / <code>LAYOUT_ENGINE</code> in <code>backend/.env</code> to use a
-          real one.
+          {health.ocr_engine === "mock" && health.layout_engine === "mock" ? (
+            <>
+              Running on mock engines — nothing below was read from your image. Set{" "}
+              <code>OCR_ENGINE</code> and <code>LAYOUT_ENGINE</code> in <code>backend/.env</code>.
+            </>
+          ) : health.ocr_engine === "mock" ? (
+            <>
+              Structure is really detected (<code>{health.layout_engine}</code>), but the{" "}
+              <b>text is generated</b> — <code>OCR_ENGINE=mock</code> invents its own words at its
+              own coordinates. See <code>docs/cloud-vision-setup.md</code> to read your actual page.
+            </>
+          ) : (
+            <>
+              Text is real (<code>{health.ocr_engine}</code>), but the{" "}
+              <b>structure is generated</b> — <code>LAYOUT_ENGINE=mock</code>. Try{" "}
+              <code>LAYOUT_ENGINE=opencv</code>, which needs no setup.
+            </>
+          )}
         </p>
       )}
 
       <main>{mode === "lens" ? <LensMode /> : <ScanMode />}</main>
 
       <footer className="app-footer">
-        Phase 0 scaffold · the seam is real, the engines are swappable, the output is mock until you
-        add a key.
+        Structure detection runs locally with no key. Reading the handwriting needs one — see{" "}
+        <code>docs/cloud-vision-setup.md</code>.
       </footer>
     </div>
   );

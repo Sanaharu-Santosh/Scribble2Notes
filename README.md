@@ -11,13 +11,13 @@ to match the ink underneath.
 tables with real addressable cells, figures, underlines, highlights — so the page
 can be rebuilt as an editable document rather than a picture of one.
 
-> **Status: Phase 1.** The architecture, the API contract and the overlay are
-> real and working, and the Cloud Vision mapping — including line grouping — is
-> implemented and unit-tested against hand-built responses. What's left in this
-> phase is the live check against a real key: see
+> **Status: Phase 2.** Both modes work. Mode 2's structure detection —
+> ruled tables as real cell grids, drawn boxes, underlines, highlights — runs
+> locally with no credentials, no model weights and no GPU, in about 100ms a
+> page. Mode 1's Cloud Vision mapping is implemented and unit-tested, and needs
+> one live check against a real key to be done:
 > [docs/cloud-vision-setup.md](docs/cloud-vision-setup.md), about fifteen
-> minutes. Until then the default engines are mocked, so the whole app still
-> runs end to end with no API keys, no GPU and no credit card.
+> minutes. Until then the text you see is generated while the structure is real.
 
 ---
 
@@ -60,15 +60,33 @@ POST /api/scan  ──>  LayoutEngine.analyze(image)  ──>  DocumentStructure
 Implementations register in `services/ocr/registry.py` and
 `services/layout/registry.py`, and you pick one with an environment variable:
 
-| Variable          | Options                                        | Default |
-| ----------------- | ---------------------------------------------- | ------- |
-| `OCR_ENGINE`      | `mock`, `fixture`, `cloud_vision`, `paddle`    | `mock`  |
-| `LAYOUT_ENGINE`   | `mock`, `ppstructure`, `azure`                 | `mock`  |
-| `OCR_GRANULARITY` | `line`, `word`                                 | `line`  |
+| Variable            | Options                                            | Default  |
+| ------------------- | -------------------------------------------------- | -------- |
+| `OCR_ENGINE`        | `mock`, `fixture`, `cloud_vision`, `paddle`        | `mock`   |
+| `LAYOUT_ENGINE`     | `opencv`, `mock`, `ppstructure`, `azure`           | `opencv` |
+| `OCR_GRANULARITY`   | `line`, `word`                                     | `line`   |
+| `LAYOUT_FILL_TEXT`  | `true`, `false`                                    | `true`   |
 
 This is why the project can start on mocks and end on something real without a
 rewrite — and why your own retrained CRNN can later become just another engine
 behind the same interface, rather than something the app is built around.
+
+### Mode 2 needs no setup at all
+
+Structure detection is classical computer vision, not a model: ruled tables
+become real addressable cell grids, drawn boxes and underlines and highlighter
+marks become annotations attached to the block they sit on. Nothing to download,
+no GPU, ~100ms a page.
+
+That is the right tool for this job rather than a compromise. A page of notes is
+ruled with a pen — its tables are lines, its boxes are lines, its highlights are
+colour — and morphology finds those exactly, where a document model trained on
+printed PDFs is heavier and less sure. `docs/architecture.md` has the pipeline.
+
+Structure and reading are kept separate: the engine finds *where* and *what
+kind*, then asks whichever `OCR_ENGINE` is configured for the words and files
+each one into the block or cell it falls inside. So Mode 2 gets better every time
+Mode 1 does, and an OCR failure costs you the text but not the structure.
 
 ### Granularity, and why it's a switch
 
@@ -110,13 +128,18 @@ with no browser and no server.
 | Mock + fixture engines                 | Real, deterministic                           |
 | `cloud_vision` mapping and line grouping | Implemented, unit-tested against hand-built responses |
 | `cloud_vision` against the live API    | **Not yet run** — needs a key (15 min, see the setup doc) |
+| `opencv` structure engine              | Real, tested against a page with recorded ground truth |
 | `paddle` adapter                       | Written, **not yet verified**; assumes the classic `.ocr()` result shape |
-| `ppstructure`, `azure` adapters        | Deliberate stubs — each raises with a mapping checklist in its docstring |
+| `ppstructure`, `azure` adapters        | Stubs — install path verified for PP-StructureV3, mapping unwritten |
 | Canvas editing, export, accounts       | Not started (Phases 3–5)                      |
 
-The two stubs are stubs on purpose. Those libraries changed their output schemas
-between major versions, and a mapping written from memory would look correct and
-fail quietly — worse than an honest error in a file you'll build on for months.
+The stubs are stubs on purpose, and PP-StructureV3 is the case in point. Its
+install was actually attempted: paddleocr 3.x renamed the class and **removed**
+the 2.x `PPStructure` entirely, and the pipeline needs a `paddlex[ocr]` extra
+that `pip install paddleocr` does not pull in. A mapping written from memory of
+the 2.x result shape would have been wrong on its first line and failed quietly.
+`scripts/capture_layout.py` records a real result on a networked machine so the
+mapping can be written against fact; the module docstring has the checklist.
 
 ---
 
@@ -149,7 +172,7 @@ scribble2notes/
 
 ```bash
 cd backend
-.venv/bin/python -m pytest      # 39 tests
+.venv/bin/python -m pytest      # 59 tests
 .venv/bin/python -m ruff check app tests scripts fixtures
 
 cd ../frontend
@@ -167,14 +190,21 @@ Two areas get their own files, because both fail silently rather than loudly:
   check is a confirmation rather than a debugging session. It covers the things
   that actually break: break-type handling, line quads keeping their slant, and
   the field-spelling differences between library versions.
+- **CV detection** (`test_layout_detect.py`). `fixtures/make_structured_page.py`
+  draws a page *and records where it put everything*, so these are real
+  assertions — the table is within 0.9 IoU of the real one and has exactly four
+  rows and three columns — rather than "it found some boxes, looks about right".
+  Tuning that quietly breaks underline detection fails here, not in your notes.
 
 The suite pins its own engine settings, so it keeps passing once you put real
 credentials in `backend/.env`.
 
-## Regenerating the sample page
+## Regenerating the sample pages
 
 ```bash
-cd backend && python fixtures/make_sample_page.py
+cd backend
+python fixtures/make_sample_page.py        # Lens demo: lines of writing
+python fixtures/make_structured_page.py    # Scan demo: table, box, underline, highlight
 ```
 
 It asks the mock engine where it will claim text is, then draws the text into
@@ -189,7 +219,7 @@ makes it obvious later when a real engine lands badly.
 | ----- | ------------------------------------------------------- |
 | 0     | Scaffold, engine seam, mocks, working overlay — **done** |
 | 1     | Real Mode 1: line grouping, fixture replay, engine CLI — **done**, live key check outstanding |
-| 2     | Real Mode 2: implement a structure engine, check blocks against real pages |
+| 2     | Real Mode 2: CV structure engine, tables as real grids, annotations — **done** |
 | 3     | Editable canvas (Excalidraw) + the OpenCV underline/highlight pass |
 | 4     | Export: scene → DOCX (`python-docx`), scene → PDF (WeasyPrint) |
 | 5     | Persistence, storage, accounts                          |

@@ -10,6 +10,11 @@ uvicorn app.main:app --reload
 
 # run one image through one engine — faster than the browser for engine work
 python scripts/try_engine.py --image page.jpg [--engine cloud_vision] [--granularity word]
+python scripts/try_engine.py --image page.jpg --mode scan
+
+# regenerate test pages (the structured one carries its own ground truth)
+python fixtures/make_sample_page.py
+python fixtures/make_structured_page.py
 
 # frontend (from frontend/)
 npm run typecheck
@@ -39,6 +44,14 @@ npm run dev
   `conftest.py`. Don't read real config in a test — use `use_settings()`.
 - Don't spend live API quota on work a fixture can serve: capture once with
   `try_engine.py --save-fixture`, then `OCR_ENGINE=fixture`.
+- `services/layout/detect.py` is pure image processing — it imports no schemas
+  and must stay that way, so it can be tested as plain CV.
+- Tuning a CV threshold means re-running `test_layout_detect.py`. Those assert
+  against recorded ground truth, not vibes; if a change needs the numbers
+  loosened, that is the change being wrong, not the test.
+- Line morphology closes gaps with a *closing*, never a dilation. Dilation
+  lengthens every line by the kernel, which shows up as underlines wider than
+  the words above them.
 
 ## Please don't
 

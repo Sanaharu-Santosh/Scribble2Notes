@@ -8,7 +8,7 @@ from typing import Literal
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 OcrEngineName = Literal["mock", "fixture", "cloud_vision", "paddle"]
-LayoutEngineName = Literal["mock", "ppstructure", "azure"]
+LayoutEngineName = Literal["mock", "opencv", "ppstructure", "azure"]
 OcrGranularity = Literal["line", "word"]
 
 
@@ -24,7 +24,15 @@ class Settings(BaseSettings):
     # Which implementation each mode uses. Everything is behind one interface,
     # so these are the only lines that change when you swap providers.
     ocr_engine: OcrEngineName = "mock"
-    layout_engine: LayoutEngineName = "mock"
+
+    # opencv by default: it needs no credentials, no weights and no GPU, so a
+    # fresh clone gets real structure rather than a placeholder.
+    layout_engine: LayoutEngineName = "opencv"
+
+    # The opencv engine finds structure but cannot read; it asks the configured
+    # OCR engine for the words and files them into the blocks and cells it
+    # found. Turn off to get geometry only (faster, and no API calls).
+    layout_fill_text: bool = True
 
     # Selecting a whole line feels far better than selecting word by word, so
     # engines group their output into lines by default. Switch to "word" to see

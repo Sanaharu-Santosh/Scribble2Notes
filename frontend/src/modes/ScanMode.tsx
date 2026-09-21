@@ -61,6 +61,7 @@ export function ScanMode() {
         <ImagePicker
           onPick={handlePick}
           busy={busy}
+          samplePath="/sample-structured.png"
           hint="Use a full page — the more structure it has (tables, boxes, headings), the more there is to find."
         />
       )}

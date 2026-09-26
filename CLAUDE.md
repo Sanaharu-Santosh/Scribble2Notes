@@ -49,6 +49,21 @@ npm run dev
 - Anything from the canvas — text *and* colours — is user content on its way
   into HTML. Text is escaped; colours are validated against a pattern, because
   they land in `style` attributes.
+- Schema changes go through `alembic revision --autogenerate`, then get read
+  before being applied — autogenerate misses things like server-side defaults.
+- Every page query filters by `owner_id`, and a page that isn't yours is a 404,
+  never a 403. Adding a route that skips the filter undoes the whole model.
+- `test_pages.py` needs PostgreSQL and skips without it. Don't "fix" that by
+  pointing it at SQLite — JSONB and the composite index are the point.
+- TensorFlow is imported lazily inside the CRNN engine and lives in
+  `requirements-crnn.txt`. Importing it at module scope makes every process pay
+  600MB and several seconds for an engine most of them never select.
+- CRNN preprocessing must match `dataset.py` in the NoteBook repo exactly —
+  invert, then plain resize to 32x128. Its README describes aspect-preserving
+  padding; the training code does not do that, and the weights learned the code.
+- Claims about the CRNN get a number from `scripts/eval_crnn.py`, not an
+  adjective. The in-distribution test is what separates "wiring broke" from
+  "model is weak".
 - Geometry changes need a test in `backend/tests/test_geometry.py`. A wrong box
   looks like bad OCR, which is an expensive thing to misdiagnose.
 - Engine adapters split response-walking from grouping (see `cloud_vision.py`),

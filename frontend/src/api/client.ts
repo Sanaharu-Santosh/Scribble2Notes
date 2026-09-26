@@ -1,4 +1,11 @@
-import type { DocumentStructure, ExportDocument, Health, LensResult } from "../types";
+import type {
+  DocumentStructure,
+  ExportDocument,
+  Health,
+  LensResult,
+  PageDetail,
+  PageSummary,
+} from "../types";
 
 /** Empty by default: Vite proxies /api to the backend in dev (see vite.config.ts). */
 const BASE = import.meta.env.VITE_API_BASE ?? "";
@@ -29,10 +36,10 @@ async function unwrap<T>(response: Response): Promise<T> {
   throw new ApiError(detail, response.status);
 }
 
-async function postImage<T>(path: string, file: File): Promise<T> {
+async function postImage<T>(path: string, file: File, method = "POST"): Promise<T> {
   const form = new FormData();
   form.append("file", file);
-  return unwrap<T>(await fetch(`${BASE}${path}`, { method: "POST", body: form }));
+  return unwrap<T>(await fetch(`${BASE}${path}`, { method, body: form }));
 }
 
 /** Pull the server's filename out of Content-Disposition, if it gave one. */
@@ -69,9 +76,39 @@ async function exportAs(
   };
 }
 
+async function json<T>(path: string, method: string, body?: unknown): Promise<T> {
+  return unwrap<T>(
+    await fetch(`${BASE}${path}`, {
+      method,
+      headers: body === undefined ? {} : { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }),
+  );
+}
+
 export const api = {
   health: async (): Promise<Health> => unwrap<Health>(await fetch(`${BASE}/api/health`)),
   lens: (file: File) => postImage<LensResult>("/api/lens", file),
   scan: (file: File) => postImage<DocumentStructure>("/api/scan", file),
   export: exportAs,
+
+  pages: {
+    list: () => json<PageSummary[]>("/api/pages", "GET"),
+    read: (id: string) => json<PageDetail>(`/api/pages/${id}`, "GET"),
+    create: (body: {
+      title: string;
+      page_width: number;
+      page_height: number;
+      scene: unknown[];
+    }) => json<PageDetail>("/api/pages", "POST", body),
+    update: (id: string, body: { title?: string; scene?: unknown[] }) =>
+      json<PageDetail>(`/api/pages/${id}`, "PUT", body),
+    remove: async (id: string): Promise<void> => {
+      const response = await fetch(`${BASE}/api/pages/${id}`, { method: "DELETE" });
+      if (!response.ok) throw new ApiError(`Could not delete (${response.status})`, response.status);
+    },
+    uploadScan: (id: string, file: File) =>
+      postImage<PageSummary>(`/api/pages/${id}/scan`, file, "PUT"),
+    scanUrl: (id: string) => `${BASE}/api/pages/${id}/scan`,
+  },
 };

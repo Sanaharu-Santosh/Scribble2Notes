@@ -140,6 +140,24 @@ export interface ExportDocument {
   items: ExportItem[];
 }
 
+/* ---- saved pages (mirrors backend/app/schemas/pages.py) ---- */
+
+export interface PageSummary {
+  id: string;
+  title: string;
+  page_width: number;
+  page_height: number;
+  has_scan: boolean;
+  element_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PageDetail extends PageSummary {
+  /** Raw Excalidraw elements, exactly as the canvas held them. */
+  scene: Record<string, unknown>[];
+}
+
 export interface Health {
   status: string;
   environment: string;

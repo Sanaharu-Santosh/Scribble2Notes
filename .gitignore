@@ -21,7 +21,14 @@ dist/
 *-service-account*.json
 credentials.json
 
+# Local storage for scans (STORAGE_BACKEND=local)
+backend/var/
+
 # Editors / OS
 .DS_Store
 .idea/
 .vscode/
+
+# Screenshots and exports I generate while working — useful to look at, not
+# part of the source tree.
+Claude outputs/

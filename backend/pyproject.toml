@@ -11,6 +11,10 @@ pythonpath = ["."]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# Migrations are written by `alembic revision --autogenerate` from a template.
+# Hand-formatting them to satisfy the linter only means the next generated one
+# fails again.
+extend-exclude = ["alembic/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]

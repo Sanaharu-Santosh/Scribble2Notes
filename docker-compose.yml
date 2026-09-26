@@ -10,11 +10,18 @@
 services:
   backend:
     build: ./backend
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # Migrate before serving, so a fresh clone comes up with a usable schema
+    # rather than 500s on the first save.
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://scribble:scribble@db:5432/scribble2notes
     volumes:
       - ./backend:/app
     ports:
       - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
 
   frontend:
     image: node:22-alpine
@@ -30,9 +37,7 @@ services:
     depends_on:
       - backend
 
-  # Phase 5 (persistence). Not started by default.
   db:
-    profiles: ["phase5"]
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: scribble
@@ -42,6 +47,14 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    # The backend waits on this rather than on the container merely existing:
+    # Postgres accepts connections a second or two after the process starts,
+    # and without the check the first migration races it and fails.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scribble -d scribble2notes"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
 
 volumes:
   pgdata:

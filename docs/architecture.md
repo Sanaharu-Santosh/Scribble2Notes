@@ -272,6 +272,74 @@ colours — which also come from the canvas — are validated against a strict
 pattern rather than escaped, because they land in `style` attributes and there
 is no legitimate colour containing a semicolon.
 
+## Persistence
+
+**A saved page keeps the scene, not the structure.** Detection is a one-time
+derivation; re-running it on the original scan would throw away every edit made
+since. The scene *is* the document, and the scan is provenance.
+
+**The scene is one JSONB column, not a normalised element table.** Nothing
+queries *into* a scene — it is loaded and saved whole — and normalising it would
+mean chasing Excalidraw's element schema forever, for no query that benefits.
+
+**The scan is not in the row.** Base64 image data in JSONB makes every row
+megabytes and every list query slow, so the bytes go through a third seam
+(`STORAGE_BACKEND`: local disk or S3) and the row keeps a key. Deleting a page
+drops the blob first: a row without its blob is a broken page, a blob without
+its row is only wasted bytes.
+
+**Timestamps are timezone-aware.** A naive one means "whatever zone the server
+was in", which is fine until it is deployed on a UTC host and read by someone
+who is not, and every "saved 3 hours ago" is wrong.
+
+**`eager_defaults` on the mappers is load-bearing, not tuning.** Server-generated
+values (`created_at`, and `updated_at` after an UPDATE) are otherwise marked
+expired and refreshed on next access. Under async that is IO from a synchronous
+property read, and the result is a `MissingGreenlet` error the moment anything
+reads `updated_at` after a save.
+
+**Migrations, not `create_all()`.** A deployed app needs a path from one schema
+to the next, and Alembic reads the URL from the app's settings rather than
+`alembic.ini` so there is exactly one place a connection string is configured.
+Generated migrations are excluded from the linter — hand-formatting machine
+output only means the next generated one fails.
+
+### There is no sign-in
+
+Every request resolves to one local account, created on first use. That is a
+stopping point rather than an oversight: hand-rolling password auth for a solo
+project is a bad trade, and a managed provider needs an account and keys
+belonging to whoever deploys this.
+
+What matters is that the schema is already multi-user. Pages carry an owner,
+every query filters by it, and someone else's page returns **404 rather than
+403** — a 403 confirms the id exists, which is more than a stranger should
+learn. Adding Supabase or Clerk means replacing the body of `current_user` with
+"verify the bearer token, look up or create the user it names", not reshaping
+the database or revisiting every query.
+
+Until then, treat a running instance as private. It is not so much insecure as
+unauthenticated: whoever can reach the API is the user.
+
+## The CRNN comes back as an engine
+
+Phase 0 said the from-scratch model could "come back as another engine behind
+the same interface" later. It did, and nothing outside
+`app/services/ocr/crnn.py` changed to allow it — which is the seam doing the job
+it was built for.
+
+The interesting part is that the model reads *one pre-cropped word* and has no
+idea where words are on a page. The CV pass already built for Mode 2 supplies
+exactly that missing step: blocks, then lines, then word crops
+(`detect.find_words`), by projection profile rather than by smearing ink
+sideways — dilation needs a kernel wider than a letter gap and narrower than a
+word gap, and on real text those distributions overlap.
+
+It is measured, not assumed: 24/24 on its own training crops, ~51% CER on a real
+page. `docs/crnn-engine.md` has the detail, including why beam search is
+implemented but *not* the default — it scored worse, which is what beam search
+does to a model that is confidently wrong rather than uncertain.
+
 ## Decisions on record
 
 **Excalidraw, not tldraw, for the Phase 3 canvas.** tldraw's SDK is

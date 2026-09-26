@@ -17,13 +17,17 @@ real tables) or **PDF** (the page exactly as arranged, with the text still
 selectable rather than a screenshot). Export reads the canvas, so it includes
 whatever you changed.
 
-> **Status: Phase 4.** The loop is closed: scan a page, edit it, export it as a
-> Word document or a PDF — and the export reads the canvas, so your edits are in
-> it. Structure detection runs locally with no credentials, no model weights and
-> no GPU, in about 100ms a page. What's left is one live check of Mode 1's Cloud
-> Vision mapping against a real key:
-> [docs/cloud-vision-setup.md](docs/cloud-vision-setup.md), about fifteen
-> minutes. Until then the text you see is generated while the structure is real.
+> **Status: Phase 5.** Scan a page, edit it, save it, come back to it later, and
+> export it as a Word document or a PDF. Structure detection runs locally with
+> no credentials, no model weights and no GPU, in about 100ms a page.
+>
+> Two things are deliberately not done yet. **There is no sign-in** — every
+> request resolves to one local account, so don't put this on a public URL as
+> it stands (see `app/services/auth.py`, which is the seam a real provider drops
+> into). And Mode 1's Cloud Vision mapping still wants one live check against a
+> real key: [docs/cloud-vision-setup.md](docs/cloud-vision-setup.md), about
+> fifteen minutes. Until then the text you see is generated while the structure
+> is real.
 
 ---
 
@@ -45,7 +49,12 @@ npm install
 npm run dev                            # http://localhost:5173
 ```
 
-Or `docker compose up` from the repo root, which runs both.
+Or `docker compose up` from the repo root, which runs both plus PostgreSQL and
+applies migrations first.
+
+Saving pages needs a database. With Docker that is handled; without it, point
+`DATABASE_URL` at a PostgreSQL you control and run `alembic upgrade head`.
+Everything else — both modes, export — works with no database at all.
 
 Open the app and hit **Use the sample page** — you'll get the Lens overlay
 immediately, on generated text. The banner at the top tells you when you're
@@ -68,10 +77,11 @@ Implementations register in `services/ocr/registry.py` and
 
 | Variable            | Options                                            | Default  |
 | ------------------- | -------------------------------------------------- | -------- |
-| `OCR_ENGINE`        | `mock`, `fixture`, `cloud_vision`, `paddle`        | `mock`   |
+| `OCR_ENGINE`        | `mock`, `fixture`, `cloud_vision`, `paddle`, `crnn` | `mock`  |
 | `LAYOUT_ENGINE`     | `opencv`, `mock`, `ppstructure`, `azure`           | `opencv` |
 | `OCR_GRANULARITY`   | `line`, `word`                                     | `line`   |
 | `LAYOUT_FILL_TEXT`  | `true`, `false`                                    | `true`   |
+| `STORAGE_BACKEND`   | `local`, `s3`                                      | `local`  |
 
 This is why the project can start on mocks and end on something real without a
 rewrite — and why your own retrained CRNN can later become just another engine
@@ -93,6 +103,38 @@ Structure and reading are kept separate: the engine finds *where* and *what
 kind*, then asks whichever `OCR_ENGINE` is configured for the words and files
 each one into the block or cell it falls inside. So Mode 2 gets better every time
 Mode 1 does, and an OCR failure costs you the text but not the structure.
+
+### The from-scratch model, wired up
+
+`OCR_ENGINE=crnn` runs the CRNN from the original NoteBook repo with no network
+and no cost. The CV pass supplies what that model never had — it finds the
+blocks, splits them into lines and lines into word crops — and each crop goes
+through the model.
+
+It is honestly measured rather than quietly shipped: **24/24 exact on its own
+training distribution, ~51% character error rate on a real page.** Those two
+numbers together say the wiring is right and the model is the limit — its
+charset is lowercase `a`–`z`, so digits and capitals are unrepresentable before
+recognition even begins. [docs/crnn-engine.md](docs/crnn-engine.md) has the
+measurements and what would actually fix it. Use `cloud_vision` to read your
+notes; this one makes the offline story true rather than aspirational.
+
+### Saving, and the seam where sign-in goes
+
+A saved page keeps the **canvas scene**, not the detected structure. Detection
+is a one-time derivation: re-running it on the original scan would discard every
+edit made since. The scene is the document; the scan is provenance, and it goes
+through a third seam (`STORAGE_BACKEND`, local disk or S3) rather than into a
+JSONB column, because base64 images in rows make every list query slow.
+
+There is **no sign-in**. Every request resolves to one local account, created on
+first use. That is a deliberate stopping point rather than an oversight —
+hand-rolling password auth for a solo project is a bad trade, and a managed
+provider needs an account that belongs to whoever deploys this. What matters is
+that the schema is already multi-user: pages carry an owner, every query filters
+by it, and someone else's page returns 404 rather than 403 so its existence
+doesn't leak. Adding Supabase or Clerk means replacing the body of
+`current_user`, not reshaping the database.
 
 ### Granularity, and why it's a switch
 
@@ -139,7 +181,11 @@ with no browser and no server.
 | `ppstructure`, `azure` adapters        | Stubs — install path verified for PP-StructureV3, mapping unwritten |
 | Canvas editing (Excalidraw)            | Real, verified in-browser                     |
 | DOCX / PDF export                      | Real, verified by opening the generated files |
-| Persistence, accounts                  | Not started (Phase 5)                         |
+| Saving and reopening pages             | Real, tested against PostgreSQL               |
+| `local` scan storage                   | Real, tested                                  |
+| `s3` scan storage                      | Written, **never run** — no bucket to try it against |
+| `crnn` offline engine                  | Real and measured: 24/24 in-distribution, **~51% CER on a real page** |
+| Sign-in                                | **Not built.** One local account; see the seam in `app/services/auth.py` |
 
 The stubs are stubs on purpose, and PP-StructureV3 is the case in point. Its
 install was actually attempted: paddleocr 3.x renamed the class and **removed**
@@ -181,7 +227,7 @@ scribble2notes/
 
 ```bash
 cd backend
-.venv/bin/python -m pytest      # 85 tests
+.venv/bin/python -m pytest      # 96 tests (11 skip without PostgreSQL)
 .venv/bin/python -m ruff check app tests scripts fixtures
 
 cd ../frontend
@@ -199,6 +245,10 @@ Two areas get their own files, because both fail silently rather than loudly:
   check is a confirmation rather than a debugging session. It covers the things
   that actually break: break-type handling, line quads keeping their slant, and
   the field-spelling differences between library versions.
+- **Saving** (`test_pages.py`). Against a real PostgreSQL, not SQLite standing
+  in for it: the schema leans on JSONB and a descending composite index, and a
+  suite that runs on a different database than production agrees with you right
+  up until you deploy. They skip with instructions if Postgres isn't running.
 - **The exports** (`test_export.py`). The generated files are opened and read
   back, not byte-counted: the DOCX must have real heading styles and a real
   table with addressable cells, and the PDF's text must *extract as text* —
@@ -235,8 +285,8 @@ makes it obvious later when a real engine lands badly.
 | 2     | Real Mode 2: CV structure engine, tables as real grids, annotations — **done** |
 | 3     | Editable canvas (Excalidraw) — **done** (the CV annotation pass landed in Phase 2) |
 | 4     | Export: scene → DOCX (`python-docx`), scene → PDF (WeasyPrint) — **done** |
-| 5     | Persistence, storage, accounts                          |
-| 6     | Optional: retrain the original CRNN into an offline engine |
+| 5     | Persistence and storage — **done**; accounts deliberately deferred |
+| 6     | The original CRNN wired up as an offline engine — **done**, and measured |
 | 7     | Deployment                                              |
 
 ## Prior work

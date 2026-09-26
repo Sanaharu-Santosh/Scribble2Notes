@@ -22,7 +22,7 @@ def test_unknown_engine_name_fails_at_startup(monkeypatch):
     confusing 500 on the first upload."""
     use_settings(monkeypatch, ocr_engine="nope")
 
-    with pytest.raises(ValidationError, match="'mock', 'fixture', 'cloud_vision' or 'paddle'"):
+    with pytest.raises(ValidationError, match="Input should be"):
         get_settings()
 
 

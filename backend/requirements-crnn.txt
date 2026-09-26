@@ -1,0 +1,7 @@
+# Only needed for OCR_ENGINE=crnn, the offline from-scratch engine.
+#
+# TensorFlow is ~600MB installed and several seconds just to import, which is
+# why it is kept out of requirements.txt and out of the API image. The engine
+# imports it lazily so a process that never selects `crnn` never pays for it.
+-r requirements.txt
+tensorflow-cpu>=2.16,<3

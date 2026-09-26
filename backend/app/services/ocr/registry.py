@@ -12,6 +12,7 @@ from functools import lru_cache
 from app.config import get_settings
 from app.services.ocr.base import OcrEngine, OcrEngineError
 from app.services.ocr.cloud_vision import CloudVisionOcrEngine
+from app.services.ocr.crnn import CrnnOcrEngine
 from app.services.ocr.fixture import FixtureOcrEngine
 from app.services.ocr.mock import MockOcrEngine
 from app.services.ocr.paddle import PaddleOcrEngine
@@ -21,6 +22,7 @@ ENGINES: dict[str, Callable[[], OcrEngine]] = {
     "fixture": FixtureOcrEngine,
     "cloud_vision": CloudVisionOcrEngine,
     "paddle": PaddleOcrEngine,
+    "crnn": CrnnOcrEngine,
 }
 
 

@@ -1,0 +1,7 @@
+In-distribution word crops from the CRNN's own synthetic training set, copied
+from Sanaharu-Santosh/NoteBook (data/images + labels.csv).
+
+They exist so test_crnn.py can prove the engine's wiring — preprocessing,
+charset order, decoder — is correct independently of how the model performs on
+real pages. If these read correctly and a real page still scores badly, the gap
+is the model's training data, not the code around it.

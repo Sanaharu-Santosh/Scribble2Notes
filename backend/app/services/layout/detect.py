@@ -283,6 +283,92 @@ class TextBlock:
         return self.rect[3] / max(self.line_count, 1)
 
 
+def find_words(image: np.ndarray, blocks: list[TextBlock]) -> list[list[Rect]]:
+    """Cut each text block into word-sized crops, grouped by line.
+
+    This is the detection step the CRNN never had. That model reads one
+    pre-cropped word and has no idea where words are on a page, so an offline
+    engine built on it needs something to do the finding — and since the ink is
+    already thresholded for table and underline detection, the same mask answers
+    this question too.
+
+    Done with projection profiles rather than by smearing the ink sideways and
+    reading off blobs. Dilation needs a kernel wider than a letter gap but
+    narrower than a word gap, and on real text those distributions overlap —
+    picking one width merges words on one line and splits words on the next.
+    Counting ink per column and cutting at the wide gaps asks the question
+    directly, and the threshold is scaled from the line's own height so a
+    heading and a footnote on the same page each get their own.
+    """
+    mask = to_ink_mask(image)
+    ruling = cv2.dilate(
+        cv2.bitwise_or(_extract_lines(mask, True), _extract_lines(mask, False)),
+        cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)),
+    )
+    text_only = cv2.subtract(mask, ruling)
+
+    per_block: list[list[Rect]] = []
+    for block in blocks:
+        x, y, w, h = block.rect
+        region = text_only[y : y + h, x : x + w]
+        if region.size == 0:
+            per_block.append([])
+            continue
+
+        words: list[Rect] = []
+        for top, bottom in _runs(region.sum(axis=1) > 0, minimum=3):
+            line = region[top:bottom]
+            line_height = bottom - top
+            # Word gaps run wider than the spaces between letters, and this sits
+            # between the two. The value is swept against a page whose word
+            # count is known: 0.18-0.22 lands within one word of truth on every
+            # block, while 0.35 merges half the page into single blobs.
+            gap = max(int(line_height * 0.20), 4)
+
+            for left, right in _runs(line.sum(axis=0) > 0, minimum=2, bridge=gap):
+                crop = line[:, left:right]
+                rows = np.flatnonzero(crop.sum(axis=1) > 0)
+                if rows.size == 0:
+                    continue
+                words.append(
+                    (x + left, y + top + int(rows[0]), right - left, int(rows[-1] - rows[0]) + 1)
+                )
+
+        per_block.append(words)
+
+    return per_block
+
+
+def _runs(occupied: np.ndarray, minimum: int = 1, bridge: int = 0) -> list[tuple[int, int]]:
+    """Contiguous True spans, joining spans separated by fewer than ``bridge``.
+
+    ``bridge`` is what turns "columns containing ink" into "words": letters are
+    separated by short gaps that get joined, word gaps are longer and survive.
+    """
+    spans: list[list[int]] = []
+    start: int | None = None
+
+    for index, value in enumerate(occupied):
+        if value and start is None:
+            start = index
+        elif not value and start is not None:
+            spans.append([start, index])
+            start = None
+    if start is not None:
+        spans.append([start, len(occupied)])
+
+    if bridge:
+        merged: list[list[int]] = []
+        for span in spans:
+            if merged and span[0] - merged[-1][1] < bridge:
+                merged[-1][1] = span[1]
+            else:
+                merged.append(span)
+        spans = merged
+
+    return [(a, b) for a, b in spans if b - a >= minimum]
+
+
 def find_text_blocks(image: np.ndarray, exclude: list[Grid]) -> list[TextBlock]:
     """Group glyphs into paragraph-sized regions, skipping ruled areas.
 

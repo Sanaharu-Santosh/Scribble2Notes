@@ -1,0 +1,40 @@
+# Everything listed here is excluded from the build context, which is what
+# `COPY . .` in the Dockerfile copies into the image.
+#
+# Without this file the image would carry secrets and a host virtualenv, and
+# neither problem announces itself — the build succeeds either way.
+
+# Secrets. An image is a distributable artifact: a .env baked into a layer stays
+# readable to anyone who pulls the image, and `docker history` will show it.
+# Configuration reaches the container through environment variables instead —
+# see the `environment:` keys in docker-compose.yml.
+.env
+.env.*
+!.env.example
+*-service-account*.json
+credentials.json
+
+# A virtualenv built on the host is the wrong platform with the wrong absolute
+# paths, so it is dead weight in a Linux image — and because it sits in the same
+# COPY layer as the source, touching it rebuilds everything below.
+.venv/
+venv/
+
+# Caches. Host .pyc files are never the ones the container would generate.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Scans written at runtime by STORAGE_BACKEND=local. Runtime data, not source,
+# and on most hosts this directory is ephemeral anyway.
+var/
+
+# Optional engines are installed from their own requirements files, or not at
+# all. The Dockerfile deliberately installs only requirements.txt.
+requirements-paddle.txt
+requirements-crnn.txt
+
+# Kept deliberately: models/ is loaded at runtime when OCR_ENGINE=crnn, and
+# fixtures/ is what the test suite and the demo page are built from.

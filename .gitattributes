@@ -1,0 +1,26 @@
+# Git normalises line endings on commit and checks out whatever the platform
+# prefers, which on Windows means everything comes back CRLF. That stays
+# invisible until a text file crosses into Linux — and this repo's files do,
+# every time the Docker image is built:
+#
+#   * a shell script with CRLF fails inside a container with "no such file or
+#     directory" pointing at a file that plainly exists, because the kernel
+#     reads the \r as part of the interpreter path on the shebang line;
+#   * a CSV parser expecting LF picks up a trailing \r on every last field;
+#   * and every checkout rewrites whole files, so `git diff` fills with changes
+#     that are not changes — see labels.csv, 25 lines "modified" into
+#     themselves.
+#
+# eol=lf pins the working copy to LF on every platform. Every editor worth
+# using handles it; only very old Notepad does not.
+* text=auto eol=lf
+
+# Never transform these. Git's own detection is good, but a corrupted model
+# checkpoint or PNG is a bad way to find the edge of it.
+*.png   binary
+*.jpg   binary
+*.keras binary
+*.pdf   binary
+*.docx  binary
+*.zip   binary
+*.ico   binary

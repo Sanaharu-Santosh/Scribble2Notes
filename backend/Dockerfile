@@ -20,9 +20,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # fonts-dejavu-core is not optional: with no font installed, PDFs render with no
 # text at all — a silent failure that still produces a valid-looking file.
 #
-# NOTE: package names verified to exist, but this image has not been built —
-# there is no Docker daemon in the environment it was written in. Build it once
-# before relying on it in Phase 7.
+# VERIFIED 2026-09-26: this image builds and `import weasyprint` succeeds
+# (70.0) inside it, so the list below is complete. If it ever regresses you will
+# see `OSError: cannot load library 'libgobject-2.0-0'` at import time — that is
+# a missing name here, not a Python problem.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpango-1.0-0 \
         libpangoft2-1.0-0 \

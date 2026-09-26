@@ -227,13 +227,38 @@ scribble2notes/
 
 ```bash
 cd backend
-.venv/bin/python -m pytest      # 96 tests (11 skip without PostgreSQL)
-.venv/bin/python -m ruff check app tests scripts fixtures
+python -m pytest                # 119 tests (11 skip without PostgreSQL)
+python -m ruff check app tests scripts fixtures
 
 cd ../frontend
 npm run typecheck
 npm run build
 ```
+
+WeasyPrint needs pango and friends as *system* libraries, so on Windows the
+suite cannot even be imported without installing the GTK3 runtime. Running it in
+the container is simpler, and it is the same Linux the deploy will use:
+
+```bash
+docker compose run --rm backend sh -c "pip install -q -r requirements-dev.txt && python -m pytest"
+```
+
+The eleven persistence tests need a *second* database, `scribble2notes_test`,
+because they truncate tables between cases and pointing them at your development
+database would erase your saved pages. `docker compose` passes its address as
+`TEST_DATABASE_URL`; a fresh `pgdata` volume creates it from `db/init/`. On a
+volume that already exists, once:
+
+```bash
+docker compose exec db createdb -U scribble scribble2notes_test
+docker compose run --rm \
+  -e DATABASE_URL=postgresql+asyncpg://scribble:scribble@db:5432/scribble2notes_test \
+  backend alembic upgrade head
+```
+
+Nothing in the tests creates the schema, so that migration is required — without
+it they skip. `addopts = ["-ra"]` in `pyproject.toml` makes pytest print the
+reason for every skip, so a skipped test can never again look like a passing one.
 
 Two areas get their own files, because both fail silently rather than loudly:
 

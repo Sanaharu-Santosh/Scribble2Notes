@@ -1,7 +1,9 @@
 # Local development. Both services hot-reload on file changes.
 #
-#   docker compose up            -> API on :8000, web on :5173
-#   docker compose --profile phase5 up   -> also starts Postgres
+#   docker compose up -d db      -> Postgres only, for running the API on the host
+#   docker compose up            -> the whole stack: Postgres, API on :8000, web on :5173
+#   docker compose logs -f backend   -> follow one service
+#   docker compose down          -> stop everything (add -v to wipe the database)
 #
 # Engine selection comes from backend/.env (copy backend/.env.example), which is
 # mounted with the source — so switching engines is an edit and a reload, not a
@@ -15,6 +17,11 @@ services:
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     environment:
       DATABASE_URL: postgresql+asyncpg://scribble:scribble@db:5432/scribble2notes
+      # test_pages.py truncates tables between cases, so it gets its own
+      # database rather than your saved pages. Without this the tests fall back
+      # to a localhost default, which inside this container means the container
+      # itself — nothing is listening, and all eleven skip silently.
+      TEST_DATABASE_URL: postgresql+asyncpg://scribble:scribble@db:5432/scribble2notes_test
     volumes:
       - ./backend:/app
     ports:
@@ -47,6 +54,8 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # Creates scribble2notes_test, but only on a fresh volume — see the file.
+      - ./db/init:/docker-entrypoint-initdb.d:ro
     # The backend waits on this rather than on the container merely existing:
     # Postgres accepts connections a second or two after the process starts,
     # and without the check the first migration races it and fails.
